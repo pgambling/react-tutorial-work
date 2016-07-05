@@ -11,9 +11,11 @@ const src     = join(root, 'src') ;
 const modules = join(root, 'node_modules');
 const dest    = join(root, 'dist');
 
+require('babel-register');
+
 const NODE_ENV = process.env.NODE_ENV;
-const dotenv = require('dotenv');
 const isDev = NODE_ENV === 'development';
+const isTest = NODE_ENV === 'test';
 
 var config = getConfig({
   isDev: isDev,
@@ -21,6 +23,34 @@ var config = getConfig({
   out: join(__dirname, 'dist'),
   clearBeforeBuild: true
 });
+
+config.resolve.root = [src, modules];
+config.resolve.aliast = {
+  'css': join(src, 'styles'),
+  'containers': join(src, 'containers'),
+  'components': join(src, 'components'),
+  'utils': join(src, 'utils')
+};
+
+if (isTest) {
+  config.externals = {
+    'react/lib/ReactContext': true,
+    'react/lib/ExecutionEnvironment': true,
+    'react/addons': true
+  };
+
+  config.plugins = config.plugins.filter(p => {
+    const name = p.constructor.toString();
+    const fnName = name.match(/^function (.*)\((.*\))/)
+
+    const idx = [
+      'DedupePlugin',
+      'UglifyJsPlugin'
+    ].indexOf(fnName[1]);
+    return idx < 0;
+  });
+
+}
 
 //
 // Setup CSS module loaders
@@ -64,6 +94,7 @@ config.module.loaders.push({
 //
 // Multiple Environments
 //
+const dotenv = require('dotenv');
 const dotEnvVars = dotenv.config();
 const environmentEnv = dotenv.config({
   path: join(root, 'config', `${NODE_ENV}.config.js`),
